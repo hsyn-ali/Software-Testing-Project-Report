@@ -110,5 +110,6 @@ systems. Only the setup steps differ:
 | Find Chrome and ChromeDriver | Commands on the `PATH` | `.exe` files in fixed folders, passed to the tests as full paths |
 | Read the Chrome version | `google-chrome --version` | Read from the file properties of `chrome.exe` |
 | Start the web server in the background | `nohup ... &` | `Start-Process` |
+| Web server and tests | Separate steps; the server keeps running between steps | One step; a server started in its own step was no longer running in the next step |
 | Wait for the web server | `curl` in a loop | `Invoke-WebRequest` in a loop |
 | Text encoding of the test output | UTF-8 by default | Set to UTF-8 with `PYTHONUTF8` |
