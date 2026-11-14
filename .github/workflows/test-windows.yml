@@ -4,7 +4,7 @@
 # application (index.html) as test-ubuntu.yml, but on a GitHub-hosted Windows
 # runner. The key steps are the same as on Ubuntu. The steps marked
 # "Windows-specific" are written differently because Windows uses PowerShell,
-# different file paths and a different way of starting background programs.
+# different file paths and a different way of running background programs.
 
 name: Test Windows
 
@@ -102,20 +102,36 @@ jobs:
           Add-Content -Path $env:GITHUB_ENV -Value "CHROME_BINARY=$chrome"
           Add-Content -Path $env:GITHUB_ENV -Value "CHROMEDRIVER_PATH=$driver"
 
-      # (e) Windows-specific: serve the repository folder with Python's
-      # built-in web server. Ubuntu uses "nohup ... &" to run it in the
-      # background. PowerShell has no equivalent, so Start-Process starts
-      # the server as a separate hidden process that keeps running after
-      # this step ends. The loop waits until index.html answers, for up to
-      # 20 seconds, so the tests never start before the server is ready.
-      - name: Launch the web server
+      # (e) and (f) Windows-specific: launch the web server and run the tests
+      # in ONE step.
+      #
+      # On Ubuntu the web server is started in its own step with
+      # "nohup ... &" and keeps running for the following steps. On the
+      # Windows runner this did not work: in the first run of this workflow
+      # the server answered inside its own step, but it was no longer
+      # running when the next step started, so every test case failed with
+      # ERR_CONNECTION_REFUSED. A program started in a step on the Windows
+      # runner does not stay alive after that step ends.
+      #
+      # The fix is to keep the server and the tests in the same step:
+      #   1. Start-Process starts Python's built-in web server as a separate
+      #      hidden process (PowerShell has no "nohup ... &").
+      #   2. The loop waits until index.html answers, for up to 20 seconds,
+      #      so the tests never start before the server is ready.
+      #   3. The test script runs. It reads the test cases from
+      #      test_cases.csv, launches Chrome, loads the web application, runs
+      #      every test case and prints PASS or FAIL for each one.
+      #   4. The server is stopped, and the step ends with pytest's exit
+      #      code, so the job fails if any test case failed.
+      - name: Launch the web server and run the Selenium tests
         shell: pwsh
         run: |
-          Start-Process -FilePath python `
+          $server = Start-Process -FilePath python `
             -ArgumentList "-m", "http.server", "8000", "--bind", "127.0.0.1" `
             -WindowStyle Hidden `
             -RedirectStandardOutput web-server.log `
-            -RedirectStandardError web-server-error.log
+            -RedirectStandardError web-server-error.log `
+            -PassThru
 
           $ready = $false
           foreach ($attempt in 1..20) {
@@ -135,12 +151,11 @@ jobs:
             exit 1
           }
 
-      # (f) Run the test script. It reads the test cases from
-      # test_cases.csv, launches Chrome, loads the web application, runs
-      # every test case and prints PASS or FAIL for each one. If any test
-      # case fails, pytest returns an error code and this job fails.
-      - name: Run the Selenium tests
-        run: python -m pytest test_gateway.py -s -v
+          python -m pytest test_gateway.py -s -v
+          $testExitCode = $LASTEXITCODE
+
+          Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
+          exit $testExitCode
 
       # Keep the screenshots taken by the test script as evidence. This
       # step runs even when a test fails, so failures can be inspected.
