@@ -4,6 +4,8 @@ SWE30009 Software Testing and Reliability, Project (Semester 2, 2026)
 
 Hassan Ali Shah SYED (105797705)
 
+[![Test Ubuntu](../../actions/workflows/test-ubuntu.yml/badge.svg)](../../actions/workflows/test-ubuntu.yml)
+
 ## About
 
 A small web application for an LLM AI gateway. The user enters the usage of each
@@ -27,6 +29,7 @@ from a CSV file.
 | `test_cases.csv` | 10 test cases with their expected results |
 | `test_gateway.py` | Selenium test script, run with pytest |
 | `requirements.txt` | Python packages needed to run the tests |
+| `.github/workflows/test-ubuntu.yml` | GitHub Actions workflow that runs the tests on Ubuntu |
 
 ## Run the application
 
@@ -78,3 +81,21 @@ Other optional settings, set the same way:
 | TC08 | All usage fields left blank (rejected) |
 | TC09 | Negative usage beside a valid value (rejected) |
 | TC10 | Non-numeric usage beside a valid value (rejected) |
+
+## Continuous integration
+
+The tests also run on GitHub Actions, so they do not depend on my own PC.
+The badge at the top of this page shows whether the latest run passed.
+
+| Workflow | Runner | Trigger | Time limit |
+|---|---|---|---|
+| `test-ubuntu.yml` | `ubuntu-latest` | Manual (`workflow_dispatch`) | 30 minutes |
+
+To run it: open the **Actions** tab, choose **Test Ubuntu**, then press
+**Run workflow**.
+
+The workflow checks out the repository, sets up Python, installs the packages
+in `requirements.txt`, checks that Chrome and ChromeDriver are available,
+starts a web server for `index.html`, and runs `test_gateway.py`. The
+screenshots from the run are uploaded as an artifact named
+`screenshots-ubuntu`.
