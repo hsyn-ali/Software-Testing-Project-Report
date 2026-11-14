@@ -5,6 +5,7 @@ SWE30009 Software Testing and Reliability, Project (Semester 2, 2026)
 Hassan Ali Shah SYED (105797705)
 
 [![Test Ubuntu](../../actions/workflows/test-ubuntu.yml/badge.svg)](../../actions/workflows/test-ubuntu.yml)
+[![Test Windows](../../actions/workflows/test-windows.yml/badge.svg)](../../actions/workflows/test-windows.yml)
 
 ## About
 
@@ -30,6 +31,7 @@ from a CSV file.
 | `test_gateway.py` | Selenium test script, run with pytest |
 | `requirements.txt` | Python packages needed to run the tests |
 | `.github/workflows/test-ubuntu.yml` | GitHub Actions workflow that runs the tests on Ubuntu |
+| `.github/workflows/test-windows.yml` | GitHub Actions workflow that runs the tests on Windows |
 
 ## Run the application
 
@@ -85,17 +87,28 @@ Other optional settings, set the same way:
 ## Continuous integration
 
 The tests also run on GitHub Actions, so they do not depend on my own PC.
-The badge at the top of this page shows whether the latest run passed.
+The badges at the top of this page show whether the latest run of each
+workflow passed.
 
-| Workflow | Runner | Trigger | Time limit |
-|---|---|---|---|
-| `test-ubuntu.yml` | `ubuntu-latest` | Manual (`workflow_dispatch`) | 30 minutes |
+| Workflow | Runner | Trigger | Time limit | Screenshots artifact |
+|---|---|---|---|---|
+| `test-ubuntu.yml` | `ubuntu-latest` | Manual (`workflow_dispatch`) | 30 minutes | `screenshots-ubuntu` |
+| `test-windows.yml` | `windows-latest` | Manual (`workflow_dispatch`) | 30 minutes | `screenshots-windows` |
 
-To run it: open the **Actions** tab, choose **Test Ubuntu**, then press
-**Run workflow**.
+To run one: open the **Actions** tab, choose **Test Ubuntu** or
+**Test Windows**, then press **Run workflow**.
 
-The workflow checks out the repository, sets up Python, installs the packages
-in `requirements.txt`, checks that Chrome and ChromeDriver are available,
-starts a web server for `index.html`, and runs `test_gateway.py`. The
-screenshots from the run are uploaded as an artifact named
-`screenshots-ubuntu`.
+Both workflows do the same key steps: check out the repository, set up
+Python, install the packages in `requirements.txt`, check that Chrome and
+ChromeDriver are available, start a web server for `index.html`, and run
+`test_gateway.py`. The same test script and test cases are used on both
+systems. Only the setup steps differ:
+
+| Step | Ubuntu | Windows |
+|---|---|---|
+| Shell | Bash | PowerShell |
+| Find Chrome and ChromeDriver | Commands on the `PATH` | `.exe` files in fixed folders, passed to the tests as full paths |
+| Read the Chrome version | `google-chrome --version` | Read from the file properties of `chrome.exe` |
+| Start the web server in the background | `nohup ... &` | `Start-Process` |
+| Wait for the web server | `curl` in a loop | `Invoke-WebRequest` in a loop |
+| Text encoding of the test output | UTF-8 by default | Set to UTF-8 with `PYTHONUTF8` |
