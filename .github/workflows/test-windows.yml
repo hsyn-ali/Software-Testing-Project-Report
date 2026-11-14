@@ -1,0 +1,153 @@
+# Extension Task 2 - Cross-platform compatibility (Windows)
+#
+# Runs the same Selenium test script (test_gateway.py) against the same web
+# application (index.html) as test-ubuntu.yml, but on a GitHub-hosted Windows
+# runner. The key steps are the same as on Ubuntu. The steps marked
+# "Windows-specific" are written differently because Windows uses PowerShell,
+# different file paths and a different way of starting background programs.
+
+name: Test Windows
+
+# Manual triggering only: the workflow starts when "Run workflow" is pressed
+# on the Actions tab. It does not run on push or pull request.
+on:
+  workflow_dispatch:
+
+# The job only needs to read the repository, so it gets no write access.
+permissions:
+  contents: read
+
+jobs:
+  selenium-tests:
+    # The latest Windows Server runner image provided by GitHub.
+    runs-on: windows-latest
+
+    # Stop the job automatically if it is still running after 30 minutes,
+    # so a stalled browser or server cannot use up runner time.
+    timeout-minutes: 30
+
+    # Settings read by test_gateway.py.
+    env:
+      # Address of the web application on the runner. 127.0.0.1 is used
+      # instead of "localhost" because on Windows "localhost" can be tried
+      # as an IPv6 address first, which the web server below does not use.
+      APP_URL: http://127.0.0.1:8000/index.html
+      # The runner has no screen, so Chrome must run without a window.
+      HEADLESS: "1"
+      # Windows-specific: when output is sent to a log instead of a real
+      # console, Python on Windows uses an old Windows text encoding. This
+      # makes Python use UTF-8, the same as on Ubuntu, so the test output
+      # looks identical on both systems.
+      PYTHONUTF8: "1"
+
+    steps:
+      # (a) Copy the repository files onto the runner.
+      - name: Check out the repository code
+        uses: actions/checkout@v7
+
+      # (b) Install Python 3.13, the same version as the Ubuntu workflow.
+      # The pip cache is saved between runs, using requirements.txt as the
+      # key, so later runs install packages faster.
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # (c) Install selenium and pytest from requirements.txt.
+      - name: Install dependencies from requirements.txt
+        run: python -m pip install -r requirements.txt
+
+      # (d) Windows-specific: the Windows runner image already includes
+      # Google Chrome and a matching ChromeDriver, so nothing is downloaded.
+      # On Ubuntu both are simple commands on the PATH. On Windows they are
+      # .exe files in fixed folders, so this step finds them, prints their
+      # versions, and passes their full paths to the test script through the
+      # CHROME_BINARY and CHROMEDRIVER_PATH settings.
+      - name: Check Chrome and ChromeDriver are available
+        shell: pwsh
+        run: |
+          # Chrome is installed under Program Files (64-bit or 32-bit folder).
+          $chrome = @(
+            "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+            "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $chrome) {
+            Write-Host "::error::Google Chrome was not found on this runner"
+            exit 1
+          }
+
+          # The runner image stores the ChromeDriver folder in CHROMEWEBDRIVER.
+          $driver = Join-Path $env:CHROMEWEBDRIVER "chromedriver.exe"
+          if (-not (Test-Path $driver)) {
+            Write-Host "::error::ChromeDriver was not found at $driver"
+            exit 1
+          }
+
+          # chrome.exe has no --version option on Windows, so the version is
+          # read from the file's properties instead.
+          $chromeVersion = (Get-Item $chrome).VersionInfo.ProductVersion
+          $driverVersion = & $driver --version
+          Write-Host "Google Chrome $chromeVersion"
+          Write-Host $driverVersion
+
+          $chromeMajor = $chromeVersion.Split(".")[0]
+          $driverMajor = ($driverVersion -split " ")[1].Split(".")[0]
+          if ($chromeMajor -ne $driverMajor) {
+            Write-Host "::warning::Chrome $chromeMajor and ChromeDriver $driverMajor have different major versions"
+          }
+
+          # Make both paths available to the later steps of this job.
+          Add-Content -Path $env:GITHUB_ENV -Value "CHROME_BINARY=$chrome"
+          Add-Content -Path $env:GITHUB_ENV -Value "CHROMEDRIVER_PATH=$driver"
+
+      # (e) Windows-specific: serve the repository folder with Python's
+      # built-in web server. Ubuntu uses "nohup ... &" to run it in the
+      # background. PowerShell has no equivalent, so Start-Process starts
+      # the server as a separate hidden process that keeps running after
+      # this step ends. The loop waits until index.html answers, for up to
+      # 20 seconds, so the tests never start before the server is ready.
+      - name: Launch the web server
+        shell: pwsh
+        run: |
+          Start-Process -FilePath python `
+            -ArgumentList "-m", "http.server", "8000", "--bind", "127.0.0.1" `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput web-server.log `
+            -RedirectStandardError web-server-error.log
+
+          $ready = $false
+          foreach ($attempt in 1..20) {
+            try {
+              Invoke-WebRequest -Uri $env:APP_URL -UseBasicParsing -TimeoutSec 2 | Out-Null
+              $ready = $true
+              Write-Host "Web server is ready after $attempt attempt(s)"
+              break
+            } catch {
+              Start-Sleep -Seconds 1
+            }
+          }
+
+          if (-not $ready) {
+            Write-Host "::error::The web server did not start"
+            Get-Content web-server.log, web-server-error.log -ErrorAction SilentlyContinue
+            exit 1
+          }
+
+      # (f) Run the test script. It reads the test cases from
+      # test_cases.csv, launches Chrome, loads the web application, runs
+      # every test case and prints PASS or FAIL for each one. If any test
+      # case fails, pytest returns an error code and this job fails.
+      - name: Run the Selenium tests
+        run: python -m pytest test_gateway.py -s -v
+
+      # Keep the screenshots taken by the test script as evidence. This
+      # step runs even when a test fails, so failures can be inspected.
+      - name: Upload the screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-windows
+          path: screenshots/
+          if-no-files-found: warn
