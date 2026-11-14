@@ -1,0 +1,11 @@
+# Test output
+screenshots/
+report.html
+
+# Python
+__pycache__/
+.pytest_cache/
+
+# Chrome for Testing binaries from the Week 7 tutorial (too large for GitHub)
+chrome-win32/
+chromedriver-win32/

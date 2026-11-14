@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM AI Gateway Dashboard</title>
+<style>
+  :root {
+    --ink: #14213d;
+    --muted: #5b6b82;
+    --page: #eef2f6;
+    --surface: #ffffff;
+    --line: #d5dce6;
+    --row: #f7f9fb;
+    --accent: #0f766e;
+    --accent-dark: #0b5c56;
+    --batch: #b45309;
+    --error: #b42318;
+    --error-bg: #fef3f2;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 24px 48px;
+  }
+
+  header { margin-bottom: 24px; }
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  header p { margin: 0; color: var(--muted); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  h2 {
+    margin: 0;
+    padding: 16px 20px;
+    font-size: 17px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  th {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: left;
+    background: var(--row);
+    border-bottom: 1px solid var(--line);
+  }
+
+  td {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+
+  th.num, td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .model-name { font-weight: 600; }
+  .provider { font-size: 13px; color: var(--muted); }
+
+  .usage-cell { width: 190px; }
+
+  .usage-input {
+    width: 130px;
+    height: 38px;
+    padding: 0 10px;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid #b6c0ce;
+    border-radius: 6px;
+  }
+
+  .usage-input::placeholder { color: #9aa6b6; }
+
+  .usage-input:focus-visible,
+  button:focus-visible,
+  .switch:focus-visible {
+    outline: 3px solid rgba(15, 118, 110, 0.35);
+    outline-offset: 2px;
+  }
+
+  .usage-input.invalid {
+    border-color: var(--error);
+    background: var(--error-bg);
+  }
+
+  .field-error {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--error);
+    white-space: normal;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+  }
+
+  .batch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+  }
+
+  .batch-title { display: block; font-weight: 600; }
+  .batch-note { display: block; font-size: 13px; color: var(--muted); }
+
+  .switch {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    position: relative;
+    width: 46px;
+    height: 26px;
+    margin: 0;
+    background: #b6c0ce;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .switch::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: #ffffff;
+    border-radius: 50%;
+    transition: transform 0.15s;
+  }
+
+  .switch:checked { background: var(--batch); }
+  .switch:checked::before { transform: translateX(20px); }
+
+  .buttons { display: flex; gap: 10px; }
+
+  button {
+    height: 40px;
+    padding: 0 18px;
+    font: inherit;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  #calculate-btn {
+    color: #ffffff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+  }
+
+  #calculate-btn:hover { background: var(--accent-dark); }
+
+  #clear-btn {
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid #b6c0ce;
+  }
+
+  #clear-btn:hover { background: var(--row); }
+
+  #error-message {
+    margin: 0 20px 16px;
+    padding: 10px 14px;
+    color: var(--error);
+    background: var(--error-bg);
+    border: 1px solid #f3b8b1;
+    border-radius: 6px;
+  }
+
+  #error-message ul { margin: 0; padding-left: 18px; }
+
+  #placeholder {
+    margin: 0;
+    padding: 28px 20px;
+    color: var(--muted);
+  }
+
+  .amounts { padding: 8px 20px 12px; }
+
+  .amount-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .amount-row span:first-child { color: var(--muted); }
+  .amount-row.discount span:last-child { color: var(--batch); font-weight: 600; }
+
+  .total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 18px 20px;
+    color: #ffffff;
+    background: var(--ink);
+  }
+
+  .total-label { font-weight: 600; }
+
+  #total {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  [hidden] { display: none !important; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 560px) {
+    .page { padding: 20px 12px 32px; }
+    h2 { padding: 14px 12px; }
+    th, td { padding: 10px 12px; }
+    th.num { white-space: normal; }
+    .usage-cell { width: 112px; }
+    .usage-input { width: 88px; }
+    .controls { padding: 16px 12px; }
+    #error-message { margin: 0 12px 16px; }
+    #placeholder { padding: 24px 12px; }
+    .amounts { padding: 8px 12px 12px; }
+    .total { padding: 16px 12px; }
+    #total { font-size: 24px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .switch, .switch::before { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page" id="page">
+  <header>
+    <h1>LLM AI Gateway Dashboard</h1>
+    <p>Enter the tokens used on each model, then calculate the amount to pay.</p>
+  </header>
+
+  <div class="layout">
+    <form class="panel" id="usage-form" novalidate autocomplete="off">
+      <h2>Model usage</h2>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Model</th>
+            <th scope="col" class="num">Price per 1M tokens</th>
+            <th scope="col" class="num">Usage (million tokens)</th>
+          </tr>
+        </thead>
+        <tbody id="model-rows"></tbody>
+      </table>
+
+      <div class="controls">
+        <label class="batch" for="batch-toggle">
+          <input type="checkbox" class="switch" id="batch-toggle">
+          <span>
+            <span class="batch-title">Batch API pricing</span>
+            <span class="batch-note">50% off the price of every model</span>
+          </span>
+        </label>
+        <div class="buttons">
+          <button type="button" id="clear-btn">Clear</button>
+          <button type="submit" id="calculate-btn">Calculate Usage</button>
+        </div>
+      </div>
+
+      <div id="error-message" role="alert" hidden></div>
+    </form>
+
+    <section class="panel" aria-live="polite">
+      <h2>Usage summary</h2>
+      <p id="placeholder">Enter usage for at least one model and select Calculate Usage to see the bill.</p>
+
+      <div id="bill" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Model</th>
+              <th scope="col" class="num">Usage</th>
+              <th scope="col" class="num">Cost</th>
+            </tr>
+          </thead>
+          <tbody id="summary-rows"></tbody>
+        </table>
+        <div class="amounts">
+          <div class="amount-row"><span>Subtotal</span><span id="subtotal"></span></div>
+          <div class="amount-row discount"><span>Batch API discount (50%)</span><span id="discount"></span></div>
+          <div class="amount-row"><span>SST (6%)</span><span id="sst"></span></div>
+        </div>
+        <div class="total">
+          <span class="total-label">Total to pay</span>
+          <span id="total"></span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  // Prices are stored in sen (RM x 100) per 1 million tokens so all maths uses whole numbers.
+  const MODELS = [
+    { id: "gpt-4o",           name: "GPT-4o",           provider: "OpenAI",     price: 4000 },
+    { id: "gpt-4o-mini",      name: "GPT-4o mini",      provider: "OpenAI",     price: 250 },
+    { id: "claude-sonnet-4",  name: "Claude Sonnet 4",  provider: "Anthropic",  price: 6000 },
+    { id: "claude-haiku-3-5", name: "Claude Haiku 3.5", provider: "Anthropic",  price: 1600 },
+    { id: "gemini-2-5-pro",   name: "Gemini 2.5 Pro",   provider: "Google",     price: 4500 },
+    { id: "gemini-2-5-flash", name: "Gemini 2.5 Flash", provider: "Google",     price: 1000 },
+    { id: "llama-3-3-70b",    name: "Llama 3.3 70B",    provider: "Meta",       price: 320 },
+    { id: "mistral-large",    name: "Mistral Large",    provider: "Mistral AI", price: 2400 }
+  ];
+  const MAX_USAGE = 10000;   // million tokens per model
+  const SST_RATE = 6;        // percent
+  const BATCH_DISCOUNT = 50; // percent
+
+  const form = document.getElementById("usage-form");
+  const batchToggle = document.getElementById("batch-toggle");
+  const errorBox = document.getElementById("error-message");
+  const bill = document.getElementById("bill");
+  const placeholder = document.getElementById("placeholder");
+  const money = (sen) => "RM " + (sen / 100).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Build the 8 model rows.
+  for (const model of MODELS) {
+    const row = document.createElement("tr");
+    row.innerHTML =
+      '<td><div class="model-name">' + model.name + '</div><div class="provider">' + model.provider + '</div></td>' +
+      '<td class="num">' + money(model.price) + '</td>' +
+      '<td class="num usage-cell">' +
+        '<input type="text" inputmode="decimal" maxlength="12" placeholder="0" class="usage-input" id="usage-' + model.id + '" aria-label="Usage for ' + model.name + ' in million tokens">' +
+        '<div class="field-error" id="error-' + model.id + '" hidden></div>' +
+      '</td>';
+    document.getElementById("model-rows").appendChild(row);
+  }
+
+  // A bill on screen must always match the inputs, so hide it as soon as anything changes.
+  form.addEventListener("input", function () {
+    bill.hidden = true;
+    placeholder.hidden = false;
+  });
+
+  document.getElementById("clear-btn").addEventListener("click", function () {
+    form.reset();
+    for (const model of MODELS) {
+      document.getElementById("usage-" + model.id).classList.remove("invalid");
+      document.getElementById("error-" + model.id).hidden = true;
+    }
+    errorBox.hidden = true;
+    bill.hidden = true;
+    placeholder.hidden = false;
+  });
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    const errors = [];
+    const used = [];
+    let subtotal = 0;
+
+    for (const model of MODELS) {
+      const input = document.getElementById("usage-" + model.id);
+      const fieldError = document.getElementById("error-" + model.id);
+      const text = input.value.trim();
+      let hundredths = 0; // usage x 100, so 2.25 million tokens is 225
+      let message = "";
+
+      if (text === "") {
+        hundredths = 0;
+      } else if (/^\d+(\.\d{1,2})?$/.test(text)) {
+        const parts = text.split(".");
+        hundredths = Number(parts[0]) * 100 + Number(((parts[1] || "") + "00").slice(0, 2));
+        if (hundredths > MAX_USAGE * 100) message = "Usage cannot exceed 10,000 million tokens";
+      } else if (/^-\d*\.?\d+$/.test(text)) {
+        message = "Usage cannot be negative";
+      } else if (/^\d+\.\d{3,}$/.test(text)) {
+        message = "Use at most 2 decimal places";
+      } else {
+        message = "Usage must be a number";
+      }
+
+      input.classList.toggle("invalid", message !== "");
+      fieldError.textContent = message;
+      fieldError.hidden = message === "";
+
+      if (message !== "") {
+        errors.push(model.name + ": " + message);
+      } else if (hundredths > 0) {
+        const cost = Math.round(hundredths * model.price / 100);
+        subtotal += cost;
+        used.push({ name: model.name, usage: hundredths / 100, cost: cost });
+      }
+    }
+
+    if (errors.length === 0 && used.length === 0) errors.push("Enter usage for at least one model");
+
+    if (errors.length > 0) {
+      errorBox.innerHTML = "<ul>" + errors.map((e) => "<li>" + e + "</li>").join("") + "</ul>";
+      errorBox.hidden = false;
+      bill.hidden = true;
+      placeholder.hidden = false;
+      return;
+    }
+
+    const discount = batchToggle.checked ? Math.round(subtotal * BATCH_DISCOUNT / 100) : 0;
+    const sst = Math.round((subtotal - discount) * SST_RATE / 100);
+    const total = subtotal - discount + sst;
+
+    document.getElementById("summary-rows").innerHTML = used.map((u) =>
+      "<tr><td>" + u.name + '</td><td class="num">' + u.usage.toLocaleString("en-MY", { maximumFractionDigits: 2 }) + ' M</td><td class="num">' + money(u.cost) + "</td></tr>"
+    ).join("");
+    document.getElementById("subtotal").textContent = money(subtotal);
+    document.getElementById("discount").textContent = (discount > 0 ? "- " : "") + money(discount);
+    document.getElementById("sst").textContent = money(sst);
+    document.getElementById("total").textContent = money(total);
+
+    errorBox.hidden = true;
+    placeholder.hidden = true;
+    bill.hidden = false;
+  });
+</script>
+</body>
+</html>

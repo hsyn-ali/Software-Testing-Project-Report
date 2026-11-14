@@ -1,0 +1,11 @@
+test_id,description,gpt-4o,gpt-4o-mini,claude-sonnet-4,claude-haiku-3-5,gemini-2-5-pro,gemini-2-5-flash,llama-3-3-70b,mistral-large,batch,expected_models_used,expected_subtotal,expected_discount,expected_sst,expected_total,expected_error
+TC01,Single model at standard price,10,,,,,,,,no,1,400.00,0.00,24.00,424.00,
+TC02,All eight models at standard price,10,20,5,8,4,30,50,6,no,8,1662.00,0.00,99.72,1761.72,
+TC03,All eight models with batch discount,10,20,5,8,4,30,50,6,yes,8,1662.00,831.00,49.86,880.86,
+TC04,Decimal usage and an explicit zero,0,0.5,,,,1.75,2.25,,no,3,25.95,0.00,1.56,27.51,
+TC05,Half-sen rounding with batch discount,,0.01,,,,,0.33,,yes,2,1.09,0.55,0.03,0.57,
+TC06,Upper boundary of 10000 million tokens,,,10000,,,,,,no,1,600000.00,0.00,36000.00,636000.00,
+TC07,Just above the upper boundary,,,10000.01,,,,,,no,,,,,,cannot exceed
+TC08,All usage fields left blank,,,,,,,,,no,,,,,,at least one model
+TC09,Negative usage beside a valid value,-5,,,3,,,,,no,,,,,,cannot be negative
+TC10,Non-numeric usage beside a valid value,,,,,abc,,,2,yes,,,,,,must be a number
