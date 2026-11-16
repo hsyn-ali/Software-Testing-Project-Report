@@ -55,7 +55,7 @@ after the test case and its result, for example `TC01_PASS.png`.
 To also generate the HTML test report, add the report options:
 
 ```
-python -m pytest test_gateway.py -s -v --html=report/test-report.html --self-contained-html
+python -m pytest test_gateway.py -v --capture=tee-sys --html=report/test-report.html --self-contained-html
 ```
 
 Then open `report/test-report.html` in a browser.
@@ -103,7 +103,7 @@ self-contained HTML file and shows:
 - a pass/fail bar, with passed in green and failed in red
 - a bar chart of the execution time of every test case, and the total time
 - a list of the failed test cases with a brief reason for each failure
-- a results table with the screenshot of every test case
+- a results table with the screenshot and the full output of every test case
 
 ## Continuous integration
 
