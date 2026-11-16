@@ -1,6 +1,9 @@
 # Test output
 screenshots/
+report/
 report.html
+web-server.log
+web-server-error.log
 
 # Python
 __pycache__/
