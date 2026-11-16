@@ -1,7 +1,9 @@
 # Extension Task 1 - CI pipeline with GitHub Actions (Ubuntu)
+# Extension Task 3 - Automated test report generation
 #
 # Runs the Selenium test script (test_gateway.py) against the web application
-# (index.html) on a GitHub-hosted Ubuntu runner instead of on my own PC.
+# (index.html) on a GitHub-hosted Ubuntu runner instead of on my own PC, then
+# uploads an HTML test report and the screenshots as build artifacts.
 
 name: Test Ubuntu
 
@@ -45,7 +47,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      # (c) Install selenium and pytest from requirements.txt.
+      # (c) Install selenium, pytest and pytest-html from requirements.txt.
       - name: Install dependencies from requirements.txt
         run: python -m pip install -r requirements.txt
 
@@ -85,8 +87,28 @@ jobs:
       # test_cases.csv, launches Chrome, loads the web application, runs
       # every test case and prints PASS or FAIL for each one. If any test
       # case fails, pytest returns an error code and this job fails.
-      - name: Run the Selenium tests
-        run: python -m pytest test_gateway.py -s -v
+      #
+      # Task 3: "--html" makes the pytest-html plugin write a test report
+      # when the run finishes. conftest.py adds the summary, the charts, the
+      # list of failed test cases and the screenshots to that report.
+      # "--self-contained-html" puts everything into one single HTML file.
+      - name: Run the Selenium tests and generate the test report
+        run: python -m pytest test_gateway.py -s -v --html=report/test-report-ubuntu.html --self-contained-html
+
+      # Task 3: upload the generated report as a build artifact.
+      # "if: always()" uploads it even when a test case failed, because a
+      # report matters most when something went wrong.
+      # "archive: false" uploads the HTML file as it is instead of inside a
+      # zip file, so the artifact link opens the report directly. The
+      # artifact is then named after the file: test-report-ubuntu.html.
+      - name: Upload the test report
+        id: upload-report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: report/test-report-ubuntu.html
+          archive: false
+          if-no-files-found: warn
 
       # Keep the screenshots taken by the test script as evidence. This
       # step runs even when a test fails, so failures can be inspected.
@@ -97,3 +119,11 @@ jobs:
           name: screenshots-ubuntu
           path: screenshots/
           if-no-files-found: warn
+
+      # Task 3: put a direct link to the uploaded report on the Summary page
+      # of this run, under the results table written by conftest.py.
+      - name: Add the report link to the run summary
+        if: always()
+        env:
+          REPORT_URL: ${{ steps.upload-report.outputs.artifact-url }}
+        run: echo "[Open the HTML test report]($REPORT_URL)" >> "$GITHUB_STEP_SUMMARY"

@@ -1,10 +1,13 @@
 # Extension Task 2 - Cross-platform compatibility (Windows)
+# Extension Task 3 - Automated test report generation
 #
 # Runs the same Selenium test script (test_gateway.py) against the same web
 # application (index.html) as test-ubuntu.yml, but on a GitHub-hosted Windows
 # runner. The key steps are the same as on Ubuntu. The steps marked
 # "Windows-specific" are written differently because Windows uses PowerShell,
 # different file paths and a different way of running background programs.
+# After the tests, an HTML test report and the screenshots are uploaded as
+# build artifacts.
 
 name: Test Windows
 
@@ -55,7 +58,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      # (c) Install selenium and pytest from requirements.txt.
+      # (c) Install selenium, pytest and pytest-html from requirements.txt.
       - name: Install dependencies from requirements.txt
         run: python -m pip install -r requirements.txt
 
@@ -123,7 +126,12 @@ jobs:
       #      every test case and prints PASS or FAIL for each one.
       #   4. The server is stopped, and the step ends with pytest's exit
       #      code, so the job fails if any test case failed.
-      - name: Launch the web server and run the Selenium tests
+      #
+      # Task 3: "--html" makes the pytest-html plugin write a test report
+      # when the run finishes. conftest.py adds the summary, the charts, the
+      # list of failed test cases and the screenshots to that report.
+      # "--self-contained-html" puts everything into one single HTML file.
+      - name: Launch the web server, run the Selenium tests and generate the test report
         shell: pwsh
         run: |
           $server = Start-Process -FilePath python `
@@ -151,11 +159,26 @@ jobs:
             exit 1
           }
 
-          python -m pytest test_gateway.py -s -v
+          python -m pytest test_gateway.py -s -v --html=report/test-report-windows.html --self-contained-html
           $testExitCode = $LASTEXITCODE
 
           Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
           exit $testExitCode
+
+      # Task 3: upload the generated report as a build artifact.
+      # "if: always()" uploads it even when a test case failed, because a
+      # report matters most when something went wrong.
+      # "archive: false" uploads the HTML file as it is instead of inside a
+      # zip file, so the artifact link opens the report directly. The
+      # artifact is then named after the file: test-report-windows.html.
+      - name: Upload the test report
+        id: upload-report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: report/test-report-windows.html
+          archive: false
+          if-no-files-found: warn
 
       # Keep the screenshots taken by the test script as evidence. This
       # step runs even when a test fails, so failures can be inspected.
@@ -166,3 +189,14 @@ jobs:
           name: screenshots-windows
           path: screenshots/
           if-no-files-found: warn
+
+      # Task 3: put a direct link to the uploaded report on the Summary page
+      # of this run, under the results table written by conftest.py.
+      # Windows-specific: PowerShell's Add-Content replaces the ">>" used on
+      # Ubuntu.
+      - name: Add the report link to the run summary
+        if: always()
+        shell: pwsh
+        env:
+          REPORT_URL: ${{ steps.upload-report.outputs.artifact-url }}
+        run: Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "[Open the HTML test report]($env:REPORT_URL)"
