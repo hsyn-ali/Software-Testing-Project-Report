@@ -131,6 +131,9 @@ jobs:
       # when the run finishes. conftest.py adds the summary, the charts, the
       # list of failed test cases and the screenshots to that report.
       # "--self-contained-html" puts everything into one single HTML file.
+      # "--capture=tee-sys" shows the output of every test case in this log
+      # and also copies it into the report, so each row of the report holds
+      # the inputs and the expected and actual values of its test case.
       - name: Launch the web server, run the Selenium tests and generate the test report
         shell: pwsh
         run: |
@@ -159,7 +162,7 @@ jobs:
             exit 1
           }
 
-          python -m pytest test_gateway.py -s -v --html=report/test-report-windows.html --self-contained-html
+          python -m pytest test_gateway.py -v --capture=tee-sys --html=report/test-report-windows.html --self-contained-html
           $testExitCode = $LASTEXITCODE
 
           Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
