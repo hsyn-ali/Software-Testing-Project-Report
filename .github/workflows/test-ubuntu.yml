@@ -92,8 +92,11 @@ jobs:
       # when the run finishes. conftest.py adds the summary, the charts, the
       # list of failed test cases and the screenshots to that report.
       # "--self-contained-html" puts everything into one single HTML file.
+      # "--capture=tee-sys" shows the output of every test case in this log
+      # and also copies it into the report, so each row of the report holds
+      # the inputs and the expected and actual values of its test case.
       - name: Run the Selenium tests and generate the test report
-        run: python -m pytest test_gateway.py -s -v --html=report/test-report-ubuntu.html --self-contained-html
+        run: python -m pytest test_gateway.py -v --capture=tee-sys --html=report/test-report-ubuntu.html --self-contained-html
 
       # Task 3: upload the generated report as a build artifact.
       # "if: always()" uploads it even when a test case failed, because a
