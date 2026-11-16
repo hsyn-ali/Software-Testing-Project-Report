@@ -29,7 +29,8 @@ from a CSV file.
 | `index.html` | The web application (HTML, CSS and JavaScript in one file) |
 | `test_cases.csv` | 10 test cases with their expected results |
 | `test_gateway.py` | Selenium test script, run with pytest |
-| `requirements.txt` | Python packages needed to run the tests |
+| `conftest.py` | Builds the HTML test report: summary, charts, failed test cases, screenshots |
+| `requirements.txt` | Python packages needed to run the tests and build the report |
 | `.github/workflows/test-ubuntu.yml` | GitHub Actions workflow that runs the tests on Ubuntu |
 | `.github/workflows/test-windows.yml` | GitHub Actions workflow that runs the tests on Windows |
 
@@ -50,6 +51,14 @@ Each row of `test_cases.csv` runs as its own test. For every test case the
 script prints the inputs, the expected and actual values, and `[PASS]` or
 `[FAIL]`. A screenshot of the page is saved in the `screenshots` folder, named
 after the test case and its result, for example `TC01_PASS.png`.
+
+To also generate the HTML test report, add the report options:
+
+```
+python -m pytest test_gateway.py -s -v --html=report/test-report.html --self-contained-html
+```
+
+Then open `report/test-report.html` in a browser.
 
 If the application is at a different address, set `APP_URL` first:
 
@@ -84,24 +93,38 @@ Other optional settings, set the same way:
 | TC09 | Negative usage beside a valid value (rejected) |
 | TC10 | Non-numeric usage beside a valid value (rejected) |
 
+## Test report
+
+The report is generated automatically at the end of a test run by the
+`pytest-html` plugin, with extra content added by `conftest.py`. It is one
+self-contained HTML file and shows:
+
+- the total number of test cases, how many passed and failed, and the pass rate
+- a pass/fail bar, with passed in green and failed in red
+- a bar chart of the execution time of every test case, and the total time
+- a list of the failed test cases with a brief reason for each failure
+- a results table with the screenshot of every test case
+
 ## Continuous integration
 
 The tests also run on GitHub Actions, so they do not depend on my own PC.
 The badges at the top of this page show whether the latest run of each
 workflow passed.
 
-| Workflow | Runner | Trigger | Time limit | Screenshots artifact |
+| Workflow | Runner | Trigger | Time limit | Artifacts |
 |---|---|---|---|---|
-| `test-ubuntu.yml` | `ubuntu-latest` | Manual (`workflow_dispatch`) | 30 minutes | `screenshots-ubuntu` |
-| `test-windows.yml` | `windows-latest` | Manual (`workflow_dispatch`) | 30 minutes | `screenshots-windows` |
+| `test-ubuntu.yml` | `ubuntu-latest` | Manual (`workflow_dispatch`) | 30 minutes | `test-report-ubuntu.html`, `screenshots-ubuntu` |
+| `test-windows.yml` | `windows-latest` | Manual (`workflow_dispatch`) | 30 minutes | `test-report-windows.html`, `screenshots-windows` |
 
 To run one: open the **Actions** tab, choose **Test Ubuntu** or
 **Test Windows**, then press **Run workflow**.
 
 Both workflows do the same key steps: check out the repository, set up
 Python, install the packages in `requirements.txt`, check that Chrome and
-ChromeDriver are available, start a web server for `index.html`, and run
-`test_gateway.py`. The same test script and test cases are used on both
+ChromeDriver are available, start a web server for `index.html`, run
+`test_gateway.py`, and upload the test report and the screenshots as
+artifacts. The Summary page of each run shows a results table and a direct
+link to the report. The same test script and test cases are used on both
 systems. Only the setup steps differ:
 
 | Step | Ubuntu | Windows |
